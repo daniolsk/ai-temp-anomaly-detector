@@ -15,20 +15,20 @@ def detect_anomalies(data_path, model_path="models/temperature_anomaly_model.job
     - model_path: ścieżka do wytrenowanego modelu
     - output_dir: katalog do zapisania wyników
     """
-    # Wczytanie modelu
+    # Wczytanie modelu i statystyk
     print(f"Wczytywanie modelu z {model_path}")
     model_data = joblib.load(model_path)
     model = model_data['model']
     scaler = model_data['scaler']
     features = model_data['features']
+    sensor_stats = model_data['sensor_stats']  # Nowa linia
     
     # Wczytanie danych
     print(f"Wczytywanie danych z {data_path}")
     df = pd.read_csv(data_path)
     
-    # Konwersja timestamp do datetime (jeśli jest string)
-    if isinstance(df['timestamp'][0], str):
-        df['timestamp'] = pd.to_datetime(df['timestamp'])
+    # Konwersja timestamp do datetime
+    df['timestamp'] = pd.to_datetime(df['timestamp'])
     
     # Ekstrakcja cech czasowych
     df['hour'] = df['timestamp'].dt.hour
@@ -42,10 +42,8 @@ def detect_anomalies(data_path, model_path="models/temperature_anomaly_model.job
     # Wykrywanie anomalii
     print("Wykrywanie anomalii...")
     df['anomaly_score'] = model.decision_function(X_scaled)
-    df['is_anomaly'] = model.predict(X_scaled)
-    
-    # Konwersja oznaczeń (-1 = anomalia, 1 = normalne) do (1 = anomalia, 0 = normalne)
-    df['is_anomaly'] = df['is_anomaly'].map({1: 0, -1: 1})
+    predictions = model.predict(X_scaled)
+    df['is_anomaly'] = np.where(predictions == -1, 1, 0)
     
     # Liczenie wykrytych anomalii
     anomaly_count = df['is_anomaly'].sum()
@@ -55,29 +53,37 @@ def detect_anomalies(data_path, model_path="models/temperature_anomaly_model.job
     os.makedirs(output_dir, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
-    # Zapis danych z wynikami
+    # Zapis wyników
     result_path = f"{output_dir}/results_{timestamp}.csv"
     df.to_csv(result_path, index=False)
     print(f"Wyniki zapisane do {result_path}")
     
-    # Wizualizacja wyników
+    # WIZUALIZACJA Z POPRAWIONYM ZAZNACZANIEM ANOMALII
     plt.figure(figsize=(16, 10))
     
-    # Wykres temperatur z oznaczonymi anomaliami
+    # Wykres temperatur
     plt.subplot(2, 1, 1)
     plt.plot(df['timestamp'], df['cpu_temp'], label='CPU', alpha=0.7)
     plt.plot(df['timestamp'], df['gpu_temp'], label='GPU', alpha=0.7)
     plt.plot(df['timestamp'], df['mb_temp'], label='Płyta główna', alpha=0.7)
     
-    # Zaznaczenie wykrytych anomalii
+    # Filtrowanie anomalii dla każdego czujnika
     anomalies = df[df['is_anomaly'] == 1]
-    if not anomalies.empty:
-        plt.scatter(anomalies['timestamp'], anomalies['cpu_temp'], 
-                   color='red', marker='x', s=100, label='Anomalie CPU')
-        plt.scatter(anomalies['timestamp'], anomalies['gpu_temp'], 
-                   color='red', marker='x', s=100, label='Anomalie GPU')
-        plt.scatter(anomalies['timestamp'], anomalies['mb_temp'], 
-                   color='red', marker='x', s=100, label='Anomalie MB')
+    
+    # CPU - 3 odchylenia standardowe od średniej
+    cpu_anom = anomalies[anomalies['cpu_temp'] > sensor_stats['cpu_mean'] + 3*sensor_stats['cpu_std']]
+    plt.scatter(cpu_anom['timestamp'], cpu_anom['cpu_temp'], 
+               color='red', marker='x', s=100, label='Anomalie CPU', zorder=5)
+    
+    # GPU - 3 odchylenia standardowe od średniej
+    gpu_anom = anomalies[anomalies['gpu_temp'] > sensor_stats['gpu_mean'] + 3*sensor_stats['gpu_std']]
+    plt.scatter(gpu_anom['timestamp'], gpu_anom['gpu_temp'], 
+               color='red', marker='s', s=100, label='Anomalie GPU', zorder=5)
+    
+    # Płyta główna - 3 odchylenia standardowe od średniej
+    mb_anom = anomalies[anomalies['mb_temp'] > sensor_stats['mb_mean'] + 3*sensor_stats['mb_std']]
+    plt.scatter(mb_anom['timestamp'], mb_anom['mb_temp'], 
+               color='red', marker='^', s=100, label='Anomalie MB', zorder=5)
     
     plt.title('Temperatura z wykrytymi anomaliami')
     plt.xlabel('Czas')
@@ -100,7 +106,7 @@ def detect_anomalies(data_path, model_path="models/temperature_anomaly_model.job
     
     # Zapis wykresu
     plot_path = f"{output_dir}/anomalies_{timestamp}.png"
-    plt.savefig(plot_path)
+    plt.savefig(plot_path, dpi=300, bbox_inches='tight')
     print(f"Wykres zapisany do {plot_path}")
     plt.show()
     
@@ -110,9 +116,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Wykrywanie anomalii w danych temperaturowych')
     parser.add_argument('data_path', type=str, help='Ścieżka do pliku CSV z danymi temperaturowymi')
     parser.add_argument('--model', type=str, default='models/temperature_anomaly_model.joblib',
-                        help='Ścieżka do wytrenowanego modelu (domyślnie: models/temperature_anomaly_model.joblib)')
+                      help='Ścieżka do wytrenowanego modelu')
     parser.add_argument('--output', type=str, default='results',
-                        help='Katalog do zapisania wyników (domyślnie: results)')
+                      help='Katalog do zapisania wyników')
     
     args = parser.parse_args()
     anomalies = detect_anomalies(args.data_path, args.model, args.output)

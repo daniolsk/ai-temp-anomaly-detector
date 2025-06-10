@@ -93,8 +93,8 @@ if __name__ == "__main__":
     os.makedirs("data", exist_ok=True)
     generate_temperature_data(seed=42, save_path="data/synthetic_temperatures.csv")
     generate_temperature_data(
-        n_samples=1200,
-        n_anomalies=40,
+        n_samples=1000,
+        n_anomalies=50,
         save_path="data/new_temperatures.csv",
         seed=123
     )
