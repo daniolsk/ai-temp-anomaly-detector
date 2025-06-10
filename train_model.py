@@ -41,7 +41,7 @@ def train_anomaly_detection_model(data_path="data/synthetic_temperatures.csv",
     model = IsolationForest(
         n_estimators=100,
         max_samples='auto',
-        contamination=0.05,  # Spodziewany procent anomalii w danych
+        contamination=0.04,  # Spodziewany procent anomalii w danych
         random_state=42
     )
     model.fit(X_scaled)
@@ -63,27 +63,37 @@ def train_anomaly_detection_model(data_path="data/synthetic_temperatures.csv",
     
     # Wykres z wykrytymi anomaliami
     plt.subplot(2, 1, 1)
-    plt.plot(df['timestamp'], df['cpu_temp'], label='CPU', alpha=0.7)
-    plt.plot(df['timestamp'], df['gpu_temp'], label='GPU', alpha=0.7)
-    plt.plot(df['timestamp'], df['mb_temp'], label='Płyta główna', alpha=0.7)
+    plt.plot(df['timestamp'], df['cpu_temp'], label='CPU', alpha=0.7, color='blue')
+    plt.plot(df['timestamp'], df['gpu_temp'], label='GPU', alpha=0.7, color='orange')
+    plt.plot(df['timestamp'], df['mb_temp'], label='Płyta główna', alpha=0.7, color='green')
     
-    # Zaznaczone rzeczywiste anomalie
+    # Zaznaczenie rzeczywistych anomalii dla każdego czujnika osobno
     real_anomalies = df[df['is_anomaly'] == 1]
-    plt.scatter(real_anomalies['timestamp'], real_anomalies['cpu_temp'], 
-                color='red', marker='o', label='Rzeczywiste anomalie')
+    if not real_anomalies.empty:
+        plt.scatter(real_anomalies['timestamp'], real_anomalies['cpu_temp'], 
+                   color='red', marker='o', s=60, label='Rzeczywiste anomalie CPU', alpha=0.8)
+        plt.scatter(real_anomalies['timestamp'], real_anomalies['gpu_temp'], 
+                   color='red', marker='s', s=60, label='Rzeczywiste anomalie GPU', alpha=0.8)
+        plt.scatter(real_anomalies['timestamp'], real_anomalies['mb_temp'], 
+                   color='red', marker='^', s=60, label='Rzeczywiste anomalie MB', alpha=0.8)
     
-    # Zaznaczone przewidziane anomalie
+    # Zaznaczenie przewidzianych anomalii dla każdego czujnika osobno
     predicted_anomalies = df[df['predicted_anomaly'] == 1]
-    plt.scatter(predicted_anomalies['timestamp'], predicted_anomalies['cpu_temp'], 
-                color='purple', marker='x', s=100, label='Wykryte anomalie')
+    if not predicted_anomalies.empty:
+        plt.scatter(predicted_anomalies['timestamp'], predicted_anomalies['cpu_temp'], 
+                   color='purple', marker='x', s=100, label='Wykryte anomalie CPU', alpha=0.9)
+        plt.scatter(predicted_anomalies['timestamp'], predicted_anomalies['gpu_temp'], 
+                   color='purple', marker='P', s=100, label='Wykryte anomalie GPU', alpha=0.9)
+        plt.scatter(predicted_anomalies['timestamp'], predicted_anomalies['mb_temp'], 
+                   color='purple', marker='*', s=100, label='Wykryte anomalie MB', alpha=0.9)
     
     plt.title('Wykrywanie anomalii - dane treningowe')
     plt.xlabel('Czas')
     plt.ylabel('Temperatura (°C)')
-    plt.legend()
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     plt.grid(True, alpha=0.3)
     
-    # Wykres wyników anomaly score
+    # Wykres wyników anomaly score (pozostaje bez zmian)
     plt.subplot(2, 1, 2)
     plt.plot(df['timestamp'], df['anomaly_score'], label='Anomaly Score', color='blue')
     plt.axhline(y=0, color='red', linestyle='--', label='Próg anomalii')
@@ -95,7 +105,7 @@ def train_anomaly_detection_model(data_path="data/synthetic_temperatures.csv",
     plt.grid(True, alpha=0.3)
     
     plt.tight_layout()
-    plt.savefig('data/training_results.png')
+    plt.savefig('data/training_results.png', bbox_inches='tight', dpi=300)
     plt.show()
     
     # Ocena modelu
