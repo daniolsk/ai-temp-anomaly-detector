@@ -21,7 +21,7 @@ def detect_anomalies(data_path, model_path="models/temperature_anomaly_model.job
     model = model_data['model']
     scaler = model_data['scaler']
     features = model_data['features']
-    sensor_stats = model_data['sensor_stats']  # Nowa linia
+    sensor_stats = model_data['sensor_stats']  
     
     # Wczytanie danych
     print(f"Wczytywanie danych z {data_path}")
@@ -71,19 +71,25 @@ def detect_anomalies(data_path, model_path="models/temperature_anomaly_model.job
     anomalies = df[df['is_anomaly'] == 1]
     
     # CPU - 3 odchylenia standardowe od średniej
-    cpu_anom = anomalies[anomalies['cpu_temp'] > sensor_stats['cpu_mean'] + 3*sensor_stats['cpu_std']]
+    cpu_upper = sensor_stats['cpu_mean'] + 3 * sensor_stats['cpu_std']
+    cpu_lower = sensor_stats['cpu_mean'] - 3 * sensor_stats['cpu_std']
+    cpu_anom = anomalies[(anomalies['cpu_temp'] > cpu_upper) | (anomalies['cpu_temp'] < cpu_lower)]
     plt.scatter(cpu_anom['timestamp'], cpu_anom['cpu_temp'], 
-               color='red', marker='x', s=100, label='Anomalie CPU', zorder=5)
-    
-    # GPU - 3 odchylenia standardowe od średniej
-    gpu_anom = anomalies[anomalies['gpu_temp'] > sensor_stats['gpu_mean'] + 3*sensor_stats['gpu_std']]
+            color='red', marker='x', s=100, label='Anomalie CPU', zorder=5)
+
+    # GPU
+    gpu_upper = sensor_stats['gpu_mean'] + 3 * sensor_stats['gpu_std']
+    gpu_lower = sensor_stats['gpu_mean'] - 3 * sensor_stats['gpu_std']
+    gpu_anom = anomalies[(anomalies['gpu_temp'] > gpu_upper) | (anomalies['gpu_temp'] < gpu_lower)]
     plt.scatter(gpu_anom['timestamp'], gpu_anom['gpu_temp'], 
-               color='red', marker='s', s=100, label='Anomalie GPU', zorder=5)
-    
-    # Płyta główna - 3 odchylenia standardowe od średniej
-    mb_anom = anomalies[anomalies['mb_temp'] > sensor_stats['mb_mean'] + 3*sensor_stats['mb_std']]
+            color='red', marker='s', s=100, label='Anomalie GPU', zorder=5)
+
+    # Płyta główna
+    mb_upper = sensor_stats['mb_mean'] + 3 * sensor_stats['mb_std']
+    mb_lower = sensor_stats['mb_mean'] - 3 * sensor_stats['mb_std']
+    mb_anom = anomalies[(anomalies['mb_temp'] > mb_upper) | (anomalies['mb_temp'] < mb_lower)]
     plt.scatter(mb_anom['timestamp'], mb_anom['mb_temp'], 
-               color='red', marker='^', s=100, label='Anomalie MB', zorder=5)
+            color='red', marker='^', s=100, label='Anomalie MB', zorder=5)
     
     plt.title('Temperatura z wykrytymi anomaliami')
     plt.xlabel('Czas')

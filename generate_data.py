@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
 import os
 
-def generate_temperature_data(n_samples=1000, n_anomalies=50, save_path="data/synthetic_temperatures.csv", seed=42):
+def generate_temperature_data(n_samples=1000, n_anomalies=50, save_path="data/synthetic_temperatures.csv", seed=42, plot_title="Syntetyczne dane temperaturowe z anomaliami"):
     """
     Generuje syntetyczne dane temperaturowe z anomaliami
     """
@@ -44,13 +44,23 @@ def generate_temperature_data(n_samples=1000, n_anomalies=50, save_path="data/sy
     
     for idx in anomaly_indices:
         anomaly_type = np.random.choice(['cpu', 'gpu', 'mb'])
+        direction = np.random.choice(['up', 'down'])  # losowo wzrost lub spadek
         
         if anomaly_type == 'cpu':
-            df.loc[idx, 'cpu_temp'] = np.random.uniform(80, 95)
+            if direction == 'up':
+                df.loc[idx, 'cpu_temp'] = np.random.uniform(80, 95)  
+            else:
+                df.loc[idx, 'cpu_temp'] = np.random.uniform(10, 25)  
         elif anomaly_type == 'gpu':
-            df.loc[idx, 'gpu_temp'] = np.random.uniform(85, 100)
+            if direction == 'up':
+                df.loc[idx, 'gpu_temp'] = np.random.uniform(85, 100)
+            else:
+                df.loc[idx, 'gpu_temp'] = np.random.uniform(15, 30)
         else:
-            df.loc[idx, 'mb_temp'] = np.random.uniform(60, 70)
+            if direction == 'up':
+                df.loc[idx, 'mb_temp'] = np.random.uniform(60, 70)
+            else:
+                df.loc[idx, 'mb_temp'] = np.random.uniform(10, 20)
         
         df.loc[idx, 'is_anomaly'] = 1
         df.loc[idx, 'anomaly_type'] = anomaly_type
@@ -79,13 +89,13 @@ def generate_temperature_data(n_samples=1000, n_anomalies=50, save_path="data/sy
     plt.scatter(anomalies_mb['timestamp'], anomalies_mb['mb_temp'], 
                 color='red', marker='^', s=60, label='Anomalie MB')
     
-    plt.title('Syntetyczne dane temperaturowe z anomaliami')
+    plt.title(plot_title)
     plt.xlabel('Czas')
     plt.ylabel('Temperatura (°C)')
     plt.legend()
     plt.grid(True, alpha=0.3)
     plt.tight_layout()
-    plt.savefig('data/synthetic_temperatures_plot.png', dpi=300)
+    plt.savefig('data/' + str(plot_title) + '.png', dpi=300)
     plt.show()
 
 if __name__ == "__main__":
@@ -96,5 +106,6 @@ if __name__ == "__main__":
         n_samples=1000,
         n_anomalies=50,
         save_path="data/new_temperatures.csv",
-        seed=123
+        seed=123,
+        plot_title="Wykres nowych danych do testowania modelu"
     )

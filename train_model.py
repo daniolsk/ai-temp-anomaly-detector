@@ -19,7 +19,7 @@ def train_anomaly_detection_model(data_path="data/synthetic_temperatures.csv",
     print(f"Wczytywanie danych z {data_path}")
     df = pd.read_csv(data_path)
     
-    # Konwersja timestamp do datetime (jeśli jest string)
+    # Konwersja timestamp do datetime 
     if isinstance(df['timestamp'][0], str):
         df['timestamp'] = pd.to_datetime(df['timestamp'])
     
@@ -56,13 +56,13 @@ def train_anomaly_detection_model(data_path="data/synthetic_temperatures.csv",
     # Zapisanie modelu i skalera
     os.makedirs(os.path.dirname(model_path), exist_ok=True)
     sensor_stats = {
-    'cpu_mean': df['cpu_temp'].mean(),
-    'cpu_std': df['cpu_temp'].std(),
-    'gpu_mean': df['gpu_temp'].mean(),
-    'gpu_std': df['gpu_temp'].std(),
-    'mb_mean': df['mb_temp'].mean(),
-    'mb_std': df['mb_temp'].std()
-}
+        'cpu_mean': df['cpu_temp'].mean(),
+        'cpu_std': df['cpu_temp'].std(),
+        'gpu_mean': df['gpu_temp'].mean(),
+        'gpu_std': df['gpu_temp'].std(),
+        'mb_mean': df['mb_temp'].mean(),
+        'mb_std': df['mb_temp'].std()
+    }
 
     joblib.dump({'model': model, 'scaler': scaler, 'features': features, 'sensor_stats': sensor_stats}, model_path)
     print(f"Model zapisany do {model_path}")
@@ -94,15 +94,24 @@ def train_anomaly_detection_model(data_path="data/synthetic_temperatures.csv",
     # Zaznaczenie przewidzianych anomalii dla każdego czujnika osobno
     predicted_anomalies = df[df['predicted_anomaly'] == 1]
     if not predicted_anomalies.empty:
-        # Oblicz progi dla każdego czujnika
-        cpu_threshold = df['cpu_temp'].mean() + 3*df['cpu_temp'].std()
-        gpu_threshold = df['gpu_temp'].mean() + 3*df['gpu_temp'].std()
-        mb_threshold = df['mb_temp'].mean() + 3*df['mb_temp'].std()
+        # Oblicz progi dla każdego czujnika (zarówno górny jak i dolny)
+        cpu_upper = df['cpu_temp'].mean() + 3*df['cpu_temp'].std()
+        cpu_lower = df['cpu_temp'].mean() - 3*df['cpu_temp'].std()
+        gpu_upper = df['gpu_temp'].mean() + 3*df['gpu_temp'].std()
+        gpu_lower = df['gpu_temp'].mean() - 3*df['gpu_temp'].std()
+        mb_upper = df['mb_temp'].mean() + 3*df['mb_temp'].std()
+        mb_lower = df['mb_temp'].mean() - 3*df['mb_temp'].std()
         
-        # Filtruj anomalie dla każdego czujnika
-        cpu_anom = predicted_anomalies[predicted_anomalies['cpu_temp'] > cpu_threshold]
-        gpu_anom = predicted_anomalies[predicted_anomalies['gpu_temp'] > gpu_threshold]
-        mb_anom = predicted_anomalies[predicted_anomalies['mb_temp'] > mb_threshold]
+        # Filtruj anomali dla każdego czujnika 
+        cpu_anom = predicted_anomalies[
+            (predicted_anomalies['cpu_temp'] > cpu_upper) | (predicted_anomalies['cpu_temp'] < cpu_lower)
+        ]
+        gpu_anom = predicted_anomalies[
+            (predicted_anomalies['gpu_temp'] > gpu_upper) | (predicted_anomalies['gpu_temp'] < gpu_lower)
+        ]
+        mb_anom = predicted_anomalies[
+            (predicted_anomalies['mb_temp'] > mb_upper) | (predicted_anomalies['mb_temp'] < mb_lower)
+        ]
         
         plt.scatter(cpu_anom['timestamp'], cpu_anom['cpu_temp'], 
                    color='purple', marker='x', s=100, label='Wykryte anomalie CPU', alpha=0.9)
